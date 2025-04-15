@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Analysis - Results</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Text:wght@400;500&display=swap">
+    <style>
+        /* Additional styles for results page */
+        .result-section {
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .result-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: var(--spacing-md);
+            color: var(--mac-text);
+            border-bottom: 1px solid var(--mac-border);
+            padding-bottom: var(--spacing-sm);
+        }
+        
+        .result-section h3 {
+            font-size: 1.2rem;
+            margin-bottom: var(--spacing-sm);
+            color: var(--mac-text);
+        }
+        
+        .confidence-meter {
+            width: 100%;
+            height: 12px;
+            background-color: var(--mac-secondary);
+            border-radius: 6px;
+            margin: var(--spacing-md) 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .confidence-value {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s ease-in-out;
+        }
+        
+        .confidence-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--mac-text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .confidence-score {
+            font-size: 1.8rem;
+            font-weight: 600;
+            text-align: center;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .confidence-classification {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .confidence-explanation {
+            background-color: var(--mac-card-bg);
+            border: 1px solid var(--mac-border);
+            border-radius: var(--border-radius-md);
+            padding: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+            font-size: 0.95rem;
+        }
+        
+        .confidence-breakdown {
+            display: flex;
+            justify-content: space-between;
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .confidence-dimension {
+            flex: 1;
+            text-align: center;
+            padding: 0 var(--spacing-xs);
+        }
+        
+        .dimension-label {
+            font-size: 0.8rem;
+            color: var(--mac-text-secondary);
+            margin-bottom: var(--spacing-xs);
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .dimension-bar {
+            width: 100%;
+            height: 80px;
+            background-color: var(--mac-secondary);
+            border-radius: var(--border-radius-sm);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dimension-value {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+            transition: height 0.5s ease-in-out;
+        }
+        
+        .dimension-score {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: var(--spacing-xs);
+        }
+        
+        .settlement-prediction {
+            text-align: center;
+            margin: var(--spacing-lg) 0;
+            padding: var(--spacing-md);
+            background-color: var(--mac-card-bg);
+            border: 1px solid var(--mac-border);
+            border-radius: var(--border-radius-md);
+        }
+        
+        .settlement-value {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--mac-primary);
+            margin: var(--spacing-md) 0;
+        }
+        
+        .settlement-range {
+            font-size: 1.1rem;
+            color: var(--mac-text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .confidence-intervals {
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .interval-bar {
+            height: 30px;
+            background-color: var(--mac-secondary);
+            border-radius: var(--border-radius-sm);
+            margin-bottom: var(--spacing-md);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .interval-range {
+            position: absolute;
+            height: 100%;
+            background-color: rgba(0, 113, 227, 0.3);
+        }
+        
+        .interval-point {
+            position: absolute;
+            height: 100%;
+            width: 2px;
+            background-color: var(--mac-primary);
+        }
+        
+        .interval-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .interval-label span:first-child {
+            font-weight: 500;
+        }
+        
+        .similar-cases {
+            margin-top: var(--spacing-lg);
+        }
+        
+        .case-card {
+            background-color: var(--mac-card-bg);
+            border: 1px solid var(--mac-border);
+            border-radius: var(--border-radius-md);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .case-card h4 {
+            margin-bottom: var(--spacing-xs);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .case-card .similarity {
+            font-size: 0.9rem;
+            color: var(--mac-text-secondary);
+        }
+        
+        .case-card p {
+            font-size: 0.95rem;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .feature-importance {
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .feature-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .feature-name {
+            width: 30%;
+            font-size: 0.9rem;
+        }
+        
+        .feature-value-bar {
+            width: 60%;
+            height: 12px;
+            background-color: var(--mac-secondary);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .feature-value {
+            height: 100%;
+            background-color: var(--mac-primary);
+        }
+        
+        .feature-score {
+            width: 10%;
+            text-align: right;
+            font-size: 0.9rem;
+            padding-left: var(--spacing-sm);
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--spacing-xl);
+        }
+        
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+        }
+        
+        .loading-spinner-large {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0, 113, 227, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--mac-primary);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .loading-text {
+            color: var(--mac-text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--mac-border);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .tab {
+            padding: var(--spacing-sm) var(--spacing-md);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-right: var(--spacing-md);
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            border-bottom: 2px solid var(--mac-primary);
+            color: var(--mac-primary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Colors for confidence levels */
+        .very-high { background-color: #2E7D32; } /* Dark green */
+        .high { background-color: #4CAF50; } /* Green */
+        .moderate { background-color: #FFC107; } /* Amber */
+        .low { background-color: #FF9800; } /* Orange */
+        .very-low { background-color: #F44336; } /* Red */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1>Case Analysis</h1>
+            <p class="subtitle">Enhanced Analysis Results</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div id="loading" class="loading-container">
+                    <div class="loading-spinner-large"></div>
+                    <p class="loading-text">Loading enhanced analysis results...</p>
+                </div>
+                
+                <div id="results-content" style="display: none;">
+                    <div class="result-section">
+                        <h2>Case Summary</h2>
+                        <div id="case-summary"></div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <h2>Settlement Prediction</h2>
+                        <div class="settlement-prediction">
+                            <h3>Most Likely Settlement Value</h3>
+                            <div id="settlement-value" class="settlement-value">$0</div>
+                            <div id="settlement-range" class="settlement-range">Range: $0 - $0</div>
+                        </div>
+                        
+                        <div class="confidence-intervals">
+                            <h3>Confidence Intervals</h3>
+                            
+                            <div class="interval-label">
+                                <span>90% Confidence Interval</span>
+                                <span id="interval-90-label">$0 - $0</span>
+                            </div>
+                            <div class="interval-bar">
+                                <div id="interval-90-range" class="interval-range"></div>
+                                <div id="interval-90-point" class="interval-point"></div>
+                            </div>
+                            
+                            <div class="interval-label">
+                                <span>80% Confidence Interval</span>
+                                <span id="interval-80-label">$0 - $0</span>
+                            </div>
+                            <div class="interval-bar">
+                                <div id="interval-80-range" class="interval-range"></div>
+                                <div id="interval-80-point" class="interval-point"></div>
+                            </div>
+                            
+                            <div class="interval-label">
+                                <span>50% Confidence Interval</span>
+                                <span id="interval-50-label">$0 - $0</span>
+                            </div>
+                            <div class="interval-bar">
+                                <div id="interval-50-range" class="interval-range"></div>
+                                <div id="interval-50-point" class="interval-point"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <h2>Confidence Assessment</h2>
+                        
+                        <div class="confidence-score" id="confidence-score">0.0/10</div>
+                        <div class="confidence-classification" id="confidence-classification">Unknown Confidence</div>
+                        
+                        <div class="confidence-meter">
+                            <div id="confidence-value" class="confidence-value"></div>
+                        </div>
+                        <div class="confidence-label">
+                            <span>Very Low</span>
+                            <span>Low</span>
+                            <span>Moderate</span>
+                            <span>High</span>
+                            <span>Very High</span>
+                        </div>
+                        
+                        <div class="confidence-explanation" id="confidence-explanation">
+                            No confidence assessment available.
+                        </div>
+                        
+                        <h3>Confidence Breakdown</h3>
+                        <div class="confidence-breakdown" id="confidence-breakdown">
+                            <!-- Confidence dimensions will be added here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <h2>Analysis Details</h2>
+                        
+                        <div class="tabs">
+                            <div class="tab active" data-tab="analysis">Analysis</div>
+                            <div class="tab" data-tab="features">Extracted Features</div>
+                            <div class="tab" data-tab="similar-cases">Similar Cases</div>
+                        </div>
+                        
+                        <div class="tab-content active" id="tab-analysis">
+                            <div id="analysis-content"></div>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-features">
+                            <h3>Key Case Features</h3>
+                            <div id="extracted-features"></div>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-similar-cases">
+                            <div id="similar-cases" class="similar-cases"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="actions">
+                        <button id="back-button" class="btn btn-secondary">Back to Input</button>
+                        <button id="print-button" class="btn btn-primary">Print Results</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 Case Analysis Tool</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const resultId = urlParams.get('id');
+            const loadingElement = document.getElementById('loading');
+            const resultsContent = document.getElementById('results-content');
+            const caseSummaryElement = document.getElementById('case-summary');
+            const analysisContentElement = document.getElementById('analysis-content');
+            const confidenceValueElement = document.getElementById('confidence-value');
+            const confidenceScoreElement = document.getElementById('confidence-score');
+            const confidenceClassificationElement = document.getElementById('confidence-classification');
+            const confidenceExplanationElement = document.getElementById('confidence-explanation');
+            const confidenceBreakdownElement = document.getElementById('confidence-breakdown');
+            const similarCasesElement = document.getElementById('similar-cases');
+            const extractedFeaturesElement = document.getElementById('extracted-features');
+            const settlementValueElement = document.getElementById('settlement-value');
+            const settlementRangeElement = document.getElementById('settlement-range');
+            const backButton = document.getElementById('back-button');
+            const printButton = document.getElementById('print-button');
+            
+            // Tab functionality
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to clicked tab and corresponding content
+                    this.classList.add('active');
+                    const tabId = `tab-${this.dataset.tab}`;
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // Function to fetch results
+            async function fetchResults() {
+                try {
+                    // In a real application, we would fetch the results using the ID
+                    // For now, we'll use localStorage to get the results that were saved during form submission
+                    const resultsJson = localStorage.getItem('caseAnalysisResults');
+                    
+                    if (resultsJson) {
+                        const results = JSON.parse(resultsJson);
+                        displayResults(results);
+                    } else {
+                        // If no results in localStorage, show error
+                        showError("No analysis results found. Please submit a case for analysis.");
+                    }
+                } catch (error) {
+                    console.error('Error fetching results:', error);
+                    showError("Error loading analysis results. Please try again.");
+                }
+            }
+            
+            // Function to display results
+            function displayResults(results) {
+                // Hide loading and show results
+                loadingElement.style.display = 'none';
+                resultsContent.style.display = 'block';
+                
+                // Display case summary (this would come from the form data in a real app)
+                const caseSummary = localStorage.getItem('caseData');
+                if (caseSummary) {
+                    const caseData = JSON.parse(caseSummary);
+                    caseSummaryElement.innerHTML = `
+                        <p><strong>Title:</strong> ${caseData.title || 'N/A'}</p>
+                        <p><strong>Case Number:</strong> ${caseData.case_number || 'N/A'}</p>
+                        <p><strong>Court:</strong> ${caseData.court || 'N/A'}</p>
+                        <p><strong>Claim Type:</strong> ${caseData.claim_type || 'N/A'}</p>
+                        <p><strong>Economic Damages:</strong> $${caseData.damages?.toLocaleString() || 'N/A'}</p>
+                    `;
+                } else {
+                    caseSummaryElement.innerHTML = '<p>Case summary not available</p>';
+                }
+                
+                // Display analysis
+                analysisContentElement.innerHTML = `<p>${results.prediction || 'No analysis available'}</p>`;
+                
+                // Display settlement value
+                if (results.settlement_value) {
+                    settlementValueElement.textContent = `$${results.settlement_value.toLocaleString()}`;
+                    
+                    // If we have confidence intervals, use them for the range
+                    if (results.confidence?.detailed_scores?.statistical_confidence?.confidence_intervals) {
+                        const intervals = results.confidence.detailed_scores.statistical_confidence.confidence_intervals;
+                        if (intervals['80%']) {
+                            const lower = intervals['80%'].lower;
+                            const upper = intervals['80%'].upper;
+                            settlementRangeElement.textContent = `80% Confidence Range: $${lower.toLocaleString()} - $${upper.toLocaleString()}`;
+                        }
+                    }
+                }
+                
+                // Display confidence intervals
+                if (results.confidence?.detailed_scores?.statistical_confidence?.confidence_intervals) {
+                    const intervals = results.confidence.detailed_scores.statistical_confidence.confidence_intervals;
+                    const pointEstimate = results.settlement_value || 0;
+                    
+                    // Find the maximum value across all intervals to scale the visualization
+                    let maxValue = pointEstimate;
+                    for (const interval in intervals) {
+                        if (intervals[interval].upper > maxValue) {
+                            maxValue = intervals[interval].upper;
+                        }
+                    }
+                    
+                    // Display 90% interval
+                    if (intervals['90%']) {
+                        const lower = intervals['90%'].lower;
+                        const upper = intervals['90%'].upper;
+                        document.getElementById('interval-90-label').textContent = `$${lower.toLocaleString()} - $${upper.toLocaleString()}`;
+                        
+                        // Position the range and point on the bar
+                        const rangeStart = (lower / maxValue) * 100;
+                        const rangeWidth = ((upper - lower) / maxValue) * 100;
+                        const pointPosition = (pointEstimate / maxValue) * 100;
+                        
+                        document.getElementById('interval-90-range').style.left = `${rangeStart}%`;
+                        document.getElementById('interval-90-range').style.width = `${rangeWidth}%`;
+                        document.getElementById('interval-90-point').style.left = `${pointPosition}%`;
+                    }
+                    
+                    // Display 80% interval
+                    if (intervals['80%']) {
+                        const lower = intervals['80%'].lower;
+                        const upper = intervals['80%'].upper;
+                        document.getElementById('interval-80-label').textContent = `$${lower.toLocaleString()} - $${upper.toLocaleString()}`;
+                        
+                        // Position the range and point on the bar
+                        const rangeStart = (lower / maxValue) * 100;
+                        const rangeWidth = ((upper - lower) / maxValue) * 100;
+                        const pointPosition = (pointEstimate / maxValue) * 100;
+                        
+                        document.getElementById('interval-80-range').style.left = `${rangeStart}%`;
+                        document.getElementById('interval-80-range').style.width = `${rangeWidth}%`;
+                        document.getElementById('interval-80-point').style.left = `${pointPosition}%`;
+                    }
+                    
+                    // Display 50% interval
+                    if (intervals['50%']) {
+                        const lower = intervals['50%'].lower;
+                        const upper = intervals['50%'].upper;
+                        document.getElementById('interval-50-label').textContent = `$${lower.toLocaleString()} - $${upper.toLocaleString()}`;
+                        
+                        // Position the range and point on the bar
+                        const rangeStart = (lower / maxValue) * 100;
+                        const rangeWidth = ((upper - lower) / maxValue) * 100;
+                        const pointPosition = (pointEstimate / maxValue) * 100;
+                        
+                        document.getElementById('interval-50-range').style.left = `${rangeStart}%`;
+                        document.getElementById('interval-50-range').style.width = `${rangeWidth}%`;
+                        document.getElementById('interval-50-point').style.left = `${pointPosition}%`;
+                    }
+                }
+                
+                // Set confidence meter and details
+                if (results.confidence) {
+                    const confidenceScore = results.confidence.overall_score || 0;
+                    const confidenceClass = getConfidenceClass(confidenceScore);
+                    
+                    // Update confidence score display
+                    confidenceScoreElement.textContent = `${confidenceScore.toFixed(1)}/10`;
+                    
+                    // Update confidence classification
+                    confidenceClassificationElement.textContent = results.confidence.classification || 'Unknown Confidence';
+                    
+                    // Update confidence meter
+                    confidenceValueElement.style.width = `${(confidenceScore / 10) * 100}%`;
+                    confidenceValueElement.className = `confidence-value ${confidenceClass}`;
+                    
+                    // Update confidence explanation
+                    if (results.confidence.explanation) {
+                        confidenceExplanationElement.textContent = results.confidence.explanation;
+                    }
+                    
+                    // Display confidence breakdown if available
+                    if (results.confidence.detailed_scores?.multi_dimensional_confidence?.dimension_scores) {
+                        const dimensionScores = results.confidence.detailed_scores.multi_dimensional_confidence.dimension_scores;
+                        const dimensionWeights = results.confidence.detailed_scores.multi_dimensional_confidence.dimension_weights || {};
+                        
+                        let breakdownHtml = '';
+                        
+                        // Create a dimension bar for each confidence dimension
+                        for (const dimension in dimensionScores) {
+                            const score = dimensionScores[dimension] * 10; // Convert to 0-10 scale
+                            const weight = dimensionWeights[dimension] || 0.2;
+                            const dimensionClass = getConfidenceClass(score);
+                            const formattedDimension = formatDimensionName(dimension);
+                            
+                            breakdownHtml += `
+                                <div class="confidence-dimension">
+                                    <div class="dimension-label">${formattedDimension}</div>
+                                    <div class="dimension-bar">
+                                        <div class="dimension-value ${dimensionClass}" style="height: ${score * 10}%"></div>
+                                    </div>
+                                    <div class="dimension-score">${score.toFixed(1)}</div>
+                                </div>
+                            `;
+                        }
+                        
+                        confidenceBreakdownElement.innerHTML = breakdownHtml;
+                    }
+                } else {
+                    // Default confidence display if not available
+                    confidenceValueElement.style.width = '0%';
+                }
+                
+                // Display similar cases
+                if (results.similar_cases && results.similar_cases.length > 0) {
+                    const casesHtml = results.similar_cases.map(caseItem => `
+                        <div class="case-card">
+                            <h4>
+                                ${caseItem.title || 'Unknown Case'}
+                                <span class="similarity">${Math.round(caseItem.similarity * 100)}% Similar</span>
+                            </h4>
+                            <p>${caseItem.description || 'No description available'}</p>
+                        </div>
+                    `).join('');
+                    
+                    similarCasesElement.innerHTML = casesHtml;
+                } else {
+                    similarCasesElement.innerHTML = '<p>No similar cases found</p>';
+                }
+                
+                // Display extracted features
+                if (results.extracted_features) {
+                    let featuresHtml = '<div class="feature-importance">';
+                    
+                    // Display case characteristics
+                    if (results.extracted_features.case_characteristics) {
+                        featuresHtml += '<h4>Case Characteristics</h4>';
+                        
+                        // Case type
+                        if (results.extracted_features.case_characteristics.case_type) {
+                            const caseType = results.extracted_features.case_characteristics.case_type;
+                            featuresHtml += `<p><strong>Case Type:</strong> ${caseType.primary_type || 'Unknown'}</p>`;
+                            
+                            if (caseType.subtypes && caseType.subtypes.length > 0) {
+                                featuresHtml += `<p><strong>Subtypes:</strong> ${caseType.subtypes.join(', ')}</p>`;
+                            }
+                        }
+                        
+                        // Jurisdiction
+                        if (results.extracted_features.case_characteristics.jurisdiction) {
+                            const jurisdiction = results.extracted_features.case_characteristics.jurisdiction;
+                            featuresHtml += `<p><strong>Jurisdiction:</strong> ${jurisdiction.jurisdiction || 'Unknown'}</p>`;
+                            
+                            if (jurisdiction.venue_characteristics) {
+                                featuresHtml += `<p><strong>Venue Characteristics:</strong> ${jurisdiction.venue_characteristics}</p>`;
+                            }
+                        }
+                        
+                        // Damages
+                        if (results.extracted_features.case_characteristics.damages) {
+                            const damages = results.extracted_features.case_characteristics.damages;
+                            
+                            if (damages.total_damages) {
+                                featuresHtml += `<p><strong>Total Damages:</strong> $${damages.total_damages.toLocaleString()}</p>`;
+                            }
+                            
+                            if (damages.economic_damages) {
+                                featuresHtml += `<p><strong>Economic Damages:</strong> $${damages.economic_damages.toLocaleString()}</p>`;
+                            }
+                            
+                            if (damages.non_economic_damages) {
+                                featuresHtml += `<p><strong>Non-Economic Damages:</strong> $${damages.non_economic_damages.toLocaleString()}</p>`;
+                            }
+                        }
+                    }
+                    
+                    // Display composite features
+                    if (results.extracted_features.composite) {
+                        featuresHtml += '<h4>Strategic Indicators</h4>';
+                        
+                        // Settlement pressure index
+                        if (results.extracted_features.composite.settlement_pressure_index) {
+                            const pressure = results.extracted_features.composite.settlement_pressure_index;
+                            
+                            if (pressure.overall_index !== undefined) {
+                                featuresHtml += `
+                                    <div class="feature-bar">
+                                        <div class="feature-name">Settlement Pressure</div>
+                                        <div class="feature-value-bar">
+                                            <div class="feature-value" style="width: ${pressure.overall_index * 10}%"></div>
+                                        </div>
+                                        <div class="feature-score">${pressure.overall_index.toFixed(1)}/10</div>
+                                    </div>
+                                `;
+                            }
+                        }
+                        
+                        // Case strength ratio
+                        if (results.extracted_features.composite.case_strength_ratio) {
+                            const strength = results.extracted_features.composite.case_strength_ratio;
+                            
+                            if (strength.strength_ratio !== undefined) {
+                                // Normalize to 0-10 scale for display
+                                const normalizedStrength = Math.min(10, strength.strength_ratio * 5);
+                                
+                                featuresHtml += `
+                                    <div class="feature-bar">
+                                        <div class="feature-name">Case Strength Ratio</div>
+                                        <div class="feature-value-bar">
+                                            <div class="feature-value" style="width: ${normalizedStrength * 10}%"></div>
+                                        </div>
+                                        <div class="feature-score">${strength.strength_ratio.toFixed(2)}</div>
+                                    </div>
+                                `;
+                            }
+                        }
+                        
+                        // Litigation risk profile
+                        if (results.extracted_features.composite.litigation_risk_profile) {
+                            const risk = results.extracted_features.composite.litigation_risk_profile;
+                            
+                            if (risk.overall_risk_level) {
+                                featuresHtml += `<p><strong>Litigation Risk Level:</strong> ${risk.overall_risk_level}</p>`;
+                            }
+                        }
+                    }
+                    
+                    featuresHtml += '</div>';
+                    extractedFeaturesElement.innerHTML = featuresHtml;
+                } else {
+                    extractedFeaturesElement.innerHTML = '<p>No extracted features available</p>';
+                }
+            }
+            
+            // Function to show error
+            function showError(message) {
+                loadingElement.style.display = 'none';
+                resultsContent.style.display = 'block';
+                
+                caseSummaryElement.innerHTML = '';
+                analysisContentElement.innerHTML = `<p class="error-message">${message}</p>`;
+                confidenceValueElement.style.width = '0%';
+                similarCasesElement.innerHTML = '';
+                extractedFeaturesElement.innerHTML = '';
+            }
+            
+            // Helper function to get confidence class based on score
+            function getConfidenceClass(score) {
+                if (score >= 9) return 'very-high';
+                if (score >= 7) return 'high';
+                if (score >= 5) return 'moderate';
+                if (score >= 3) return 'low';
+                return 'very-low';
+            }
+            
+            // Helper function to format dimension names
+            function formatDimensionName(dimension) {
+                return dimension
+                    .replace(/_/g, ' ')
+                    .replace(/confidence/i, '')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ')
+                    .trim();
+            }
+            
+            // Button event listeners
+            backButton.addEventListener('click', function() {
+                window.location.href = '/';
+            });
+            
+            printButton.addEventListener('click', function() {
+                window.print();
+            });
+            
+            // Fetch results when page loads
+            fetchResults();
+        });
+    </script>
+</body>
+</html>

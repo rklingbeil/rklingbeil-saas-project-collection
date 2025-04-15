@@ -1,0 +1,62 @@
+# File: /Users/rick/CaseProject/backend/api/payments.py
+
+import stripe
+from fastapi import APIRouter, HTTPException, Request, Header
+from fastapi.responses import JSONResponse
+
+router = APIRouter()
+
+# Hardcoded Stripe credentials (for testing purposes only)
+stripe.api_key = "gC6GzpjPFuIiVhMsDQjlhJiJpJOTQINE"
+WEBHOOK_SECRET = "pk_0R9cHamojeNEBsq8OOKZTNO8BToCQ"
+
+@router.post("/create-checkout-session")
+async def create_checkout_session():
+    """
+    Create a Stripe Checkout Session for subscriptions.
+    The price ID is hardcoded for testing purposes.
+    """
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price": "cd /Users/rick/CaseProject/backend/api
+nan",  # Your actual Stripe Price ID
+                "quantity": 1,
+            }],
+            mode="subscription",
+            success_url="https://yourdomain.com/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://yourdomain.com/cancel",
+        )
+        return {"sessionId": session.id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/webhook")
+async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
+    """
+    Handle Stripe webhook events.
+    This example uses a hardcoded webhook secret.
+    """
+    payload = await request.body()
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, stripe_signature, WEBHOOK_SECRET
+        )
+    except ValueError:
+        # Invalid payload
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        # Invalid signature
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Handle specific event types
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        print("Checkout session completed:", session)
+        # TODO: Update your database to reflect the new subscription, etc.
+    # Handle other event types as needed
+
+    return JSONResponse(content={"status": "success"})
+

@@ -1,0 +1,712 @@
+// File: /Users/rick/CaseProject/frontend/src/App.js
+import React, { useState, useEffect } from 'react';
+import './App.css';
+import StripeCheckout from "./Checkout";
+import { getClientCredentialsToken, setToken, removeToken } from './services/auth';
+import LoadingSpinner from './components/LoadingSpinner';
+import UserDashboard from './components/UserDashboard';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType } from 'docx';
+import { saveAs } from 'file-saver';
+
+function App() {
+  // Authentication state
+  const [authenticated, setAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loginError, setLoginError] = useState("");
+
+  // Analysis state
+  const [analyzing, setAnalyzing] = useState(false);
+  const [responseData, setResponseData] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Form state (subject case inputs)
+  const [court, setCourt] = useState("");
+  const [date, setDate] = useState("");
+  const [plaintiffMedicalExpert, setPlaintiffMedicalExpert] = useState("");
+  const [defenseMedicalExpert, setDefenseMedicalExpert] = useState("");
+  const [plaintiffExpert, setPlaintiffExpert] = useState("");
+  const [defenseExpert, setDefenseExpert] = useState("");
+  const [judgeArbitratorMediator, setJudgeArbitratorMediator] = useState("");
+  const [insuranceCompany, setInsuranceCompany] = useState("");
+  const [claimType, setClaimType] = useState("");
+  const [injuryType, setInjuryType] = useState("");
+  const [facts, setFacts] = useState("");
+  const [injuries, setInjuries] = useState("");
+  const [economicDamages, setEconomicDamages] = useState("");
+  const [showSimilarCases, setShowSimilarCases] = useState(false);
+
+  // Use a fixed session ID internally.
+  const sessionId = "12345";
+
+  // Function to format prediction output into paragraphs/blocks.
+  const formatPrediction = (text) => {
+    if (!text) return null;
+    return text.split("\n\n").map((block, index) => (
+      <div key={index} className="prediction-block">
+        {block.split("\n").map((line, idx) => (
+          <p key={idx} className="prediction-line">{line}</p>
+        ))}
+      </div>
+    ));
+  };
+
+  // Function to format similar cases into a readable format.
+  const formatSimilarCases = (cases) => {
+    if (!cases || !Array.isArray(cases)) return null;
+    return cases.map((item, index) => (
+      <div key={index} className="similar-case">
+        <h3>Similar Case {index + 1}</h3>
+        <p><strong>Court:</strong> {item.court || 'N/A'}</p>
+        <p><strong>Date:</strong> {item.date || 'N/A'}</p>
+        <p><strong>Claim Type:</strong> {item.claim_type || 'N/A'}</p>
+        <p><strong>Injury Type:</strong> {item.injury_type || 'N/A'}</p>
+        <p><strong>Facts:</strong> {item.facts || 'N/A'}</p>
+        <p><strong>Injuries:</strong> {item.injuries || 'N/A'}</p>
+        <p><strong>Economic Damages:</strong> {item.specials || 'N/A'}</p>
+        <hr />
+      </div>
+    ));
+  };
+
+  // Function to capitalize first letter and lowercase the rest
+  const toTitleCase = (str) => {
+    if (!str) return 'N/A';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  // Function to clean dollar amounts by removing parenthetical values
+  const cleanDollarAmount = (str) => {
+    if (!str) return 'N/A';
+    // Replace patterns like "$50,000 (50000)" with just "$50,000"
+    return str.replace(/\(\d+\)/g, '').replace(/\s+/g, ' ').trim();
+  };
+
+  // Function to format text by replacing specific terms
+  const formatText = (str) => {
+    if (!str) return 'N/A';
+    
+    return str
+      .replace(/Plff/g, 'Plaintiff')
+      .replace(/Def\./g, 'Defendant')
+      .replace(/PLAINTIFF/g, 'Plaintiff')
+      .replace(/DEFENDANT/g, 'Defendant');
+  };
+
+  // Create a Word document for similar cases
+  const createSimilarCasesDocument = async () => {
+    if (!responseData || !responseData.similar_cases) return;
+    
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              text: "SIMILAR CASES REPORT",
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+              text: `Generated: ${new Date().toLocaleString()}`,
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+              text: "",
+            }),
+          ],
+        },
+      ],
+    });
+
+    // Add each case as a section
+    responseData.similar_cases.forEach((item, index) => {
+      // Add case title
+      doc.addSection({
+        properties: {},
+        children: [
+          new Paragraph({
+            text: `CASE ${index + 1}: ${item.case_name || 'Unnamed Case'}`,
+            heading: HeadingLevel.HEADING_2,
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          
+          // BASIC INFORMATION section
+          new Paragraph({
+            text: "BASIC INFORMATION",
+            heading: HeadingLevel.HEADING_3,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Court: ", bold: true }),
+              new TextRun(toTitleCase(item.court) || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Date: ", bold: true }),
+              new TextRun(item.date || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Claim Type: ", bold: true }),
+              new TextRun(toTitleCase(item.claim_type) || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Case Number: ", bold: true }),
+              new TextRun(item.case_number || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          
+          // LEGAL REPRESENTATION section
+          new Paragraph({
+            text: "LEGAL REPRESENTATION",
+            heading: HeadingLevel.HEADING_3,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Plaintiff Attorney: ", bold: true }),
+              new TextRun(item.plaintiff_attorney || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Defense Attorney: ", bold: true }),
+              new TextRun(item.defense_attorney || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Judge/Arbitrator/Mediator: ", bold: true }),
+              new TextRun(item.judge_arbitrator_mediator || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          
+          // EXPERT WITNESSES section
+          new Paragraph({
+            text: "EXPERT WITNESSES",
+            heading: HeadingLevel.HEADING_3,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Plaintiff Medical Expert: ", bold: true }),
+              new TextRun(item.plaintiff_medical_expert || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Defense Medical Expert: ", bold: true }),
+              new TextRun(item.defense_medical_expert || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Plaintiff Expert: ", bold: true }),
+              new TextRun(item.plaintiff_expert || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Defense Expert: ", bold: true }),
+              new TextRun(item.defense_expert || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          
+          // CASE DETAILS section
+          new Paragraph({
+            text: "CASE DETAILS",
+            heading: HeadingLevel.HEADING_3,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Injury Type: ", bold: true }),
+              new TextRun(toTitleCase(item.injury_type) || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Facts: ", bold: true }),
+              new TextRun(formatText(item.facts) || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Injuries: ", bold: true }),
+              new TextRun(item.injuries || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          
+          // FINANCIAL INFORMATION section
+          new Paragraph({
+            text: "FINANCIAL INFORMATION",
+            heading: HeadingLevel.HEADING_3,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Economic Damages: ", bold: true }),
+              new TextRun(cleanDollarAmount(item.specials) || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Settlement Demand: ", bold: true }),
+              new TextRun(cleanDollarAmount(item.settlement) || 'N/A'),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Result: ", bold: true }),
+              new TextRun(toTitleCase(cleanDollarAmount(item.result)) || 'N/A'),
+            ],
+          }),
+          
+          // Separator line
+          new Paragraph({
+            text: "----",
+            alignment: AlignmentType.CENTER,
+          }),
+          new Paragraph({
+            text: "",
+          }),
+        ],
+      });
+    });
+
+    // Add disclaimer
+    doc.addParagraph(new Paragraph({
+      text: "DISCLAIMER",
+      heading: HeadingLevel.HEADING_2,
+    }));
+    
+    doc.addParagraph(new Paragraph({
+      text: "This report is provided for informational purposes only. Past case outcomes are not guarantees of similar results in current or future cases as each case is unique. This report should not be considered legal advice.",
+    }));
+
+    // Generate and download the document
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, "SimilarCasesReport.docx");
+  };
+
+  // Create a Word document for prediction results
+  const createPredictionDocument = async () => {
+    if (!responseData || !responseData.prediction) return;
+    
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              text: "CASE ANALYSIS PREDICTION",
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+              text: `Generated: ${new Date().toLocaleString()}`,
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+              text: "",
+            }),
+            new Paragraph({
+              text: "SUBJECT CASE DETAILS",
+              heading: HeadingLevel.HEADING_2,
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Court: ", bold: true }),
+                new TextRun(court || 'N/A'),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Claim Type: ", bold: true }),
+                new TextRun(claimType || 'N/A'),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Injury Type: ", bold: true }),
+                new TextRun(injuryType || 'N/A'),
+              ],
+            }),
+            new Paragraph({
+              text: "",
+            }),
+            new Paragraph({
+              text: "PREDICTION RESULTS",
+              heading: HeadingLevel.HEADING_2,
+            }),
+          ],
+        },
+      ],
+    });
+
+    // Add prediction content
+    const predictionLines = responseData.prediction.split('\n');
+    predictionLines.forEach(line => {
+      doc.addParagraph(new Paragraph({ text: line }));
+    });
+
+    // Add disclaimer
+    doc.addParagraph(new Paragraph({ text: "" }));
+    doc.addParagraph(new Paragraph({
+      text: "DISCLAIMER",
+      heading: HeadingLevel.HEADING_2,
+    }));
+    
+    doc.addParagraph(new Paragraph({
+      text: "This prediction is provided for informational purposes only and should not be considered legal advice. Each case is unique and actual outcomes may vary.",
+    }));
+
+    // Generate and download the document
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, "CaseAnalysisPrediction.docx");
+  };
+
+  // Function to download the similar cases (old plain text version for backup)
+  const downloadSimilarCasesText = () => {
+    if (!responseData || !responseData.similar_cases) return;
+    
+    // Create a properly formatted representation
+    let formattedText = "SIMILAR CASES REPORT\n";
+    formattedText += "======================\n\n";
+    formattedText += `Generated: ${new Date().toLocaleString()}\n\n`;
+    
+    responseData.similar_cases.forEach((item, index) => {
+      formattedText += `CASE ${index + 1}: ${item.case_name || 'Unnamed Case'}\n`;
+      formattedText += "".padEnd(80, "-") + "\n\n";
+      
+      // Basic case information
+      formattedText += "BASIC INFORMATION\n";
+      formattedText += `Court: ${toTitleCase(item.court) || 'N/A'}\n`;
+      formattedText += `Date: ${item.date || 'N/A'}\n`;
+      formattedText += `Claim Type: ${toTitleCase(item.claim_type) || 'N/A'}\n`;
+      formattedText += `Case Number: ${item.case_number || 'N/A'}\n\n`;
+      
+      // Attorneys and experts
+      formattedText += "LEGAL REPRESENTATION\n";
+      formattedText += `Plaintiff Attorney: ${item.plaintiff_attorney || 'N/A'}\n`;
+      formattedText += `Defense Attorney: ${item.defense_attorney || 'N/A'}\n`;
+      formattedText += `Judge/Arbitrator/Mediator: ${item.judge_arbitrator_mediator || 'N/A'}\n\n`;
+      
+      formattedText += "EXPERT WITNESSES\n";
+      formattedText += `Plaintiff Medical Expert: ${item.plaintiff_medical_expert || 'N/A'}\n`;
+      formattedText += `Defense Medical Expert: ${item.defense_medical_expert || 'N/A'}\n`;
+      formattedText += `Plaintiff Expert: ${item.plaintiff_expert || 'N/A'}\n`;
+      formattedText += `Defense Expert: ${item.defense_expert || 'N/A'}\n\n`;
+      
+      // Case details
+      formattedText += "CASE DETAILS\n";
+      formattedText += `Injury Type: ${toTitleCase(item.injury_type) || 'N/A'}\n`;
+      formattedText += `Facts: ${formatText(item.facts) || 'N/A'}\n`;
+      formattedText += `Injuries: ${item.injuries || 'N/A'}\n`;
+      
+      // Financial information
+      formattedText += "FINANCIAL INFORMATION\n";
+      formattedText += `Economic Damages: ${cleanDollarAmount(item.specials) || 'N/A'}\n`;
+      formattedText += `Settlement Demand: ${cleanDollarAmount(item.settlement) || 'N/A'}\n`;
+      formattedText += `Result: ${toTitleCase(cleanDollarAmount(item.result)) || 'N/A'}\n`;
+      
+      formattedText += "----\n\n";
+    });
+    
+    // Add disclaimer
+    formattedText += "DISCLAIMER\n";
+    formattedText += "This report is provided for informational purposes only. Past case outcomes are not\n";
+    formattedText += "guarantees of similar results in current or future cases as each case is unique.\n";
+    formattedText += "This report should not be considered legal advice.\n";
+    
+    // Create and download the file
+    const element = document.createElement("a");
+    const file = new Blob([formattedText], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = "SimilarCasesReport.txt";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  // Get token function with improved error handling
+  const getToken = async () => {
+    setLoading(true);
+    setLoginError("");
+    
+    try {
+      console.log("Attempting to get auth token...");
+      const token = await getClientCredentialsToken();
+      console.log("Token received:", token ? "Token received" : "No token received");
+      
+      if (!token) {
+        throw new Error("No token received from authentication service");
+      }
+      
+      setToken(token);
+      setAuthenticated(true);
+    } catch (err) {
+      console.error("Authentication error:", err);
+      let errorMessage = "Failed to authenticate. ";
+      
+      if (err.response) {
+        console.error("Response data:", err.response.data);
+        console.error("Response status:", err.response.status);
+        errorMessage += `Server responded with status ${err.response.status}.`;
+      } else if (err.request) {
+        console.error("No response received:", err.request);
+        errorMessage += "No response received from server.";
+      } else {
+        errorMessage += err.message || "Unknown error occurred.";
+      }
+      
+      setLoginError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize authentication
+  useEffect(() => {
+    // Force unauthenticated state for testing
+    //setLoading(false);
+    //setAuthenticated(false);
+    // Comment out automatic token retrieval
+    getToken();
+  }, []);
+
+  // Handle logout.
+  const handleLogout = () => {
+    removeToken();
+    setAuthenticated(false);
+  };
+
+  // Handle case analysis submission.
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!facts.trim() || !injuries.trim() || !economicDamages.trim()) {
+      setError("Please fill in all required fields (marked with *)");
+      return;
+    }
+    
+    setAnalyzing(true);
+    setError(null);
+    
+    const payload = {
+      subject_case: {
+        court,
+        date,
+        plaintiff_medical_expert: plaintiffMedicalExpert,
+        defense_medical_expert: defenseMedicalExpert,
+        plaintiff_expert: plaintiffExpert,
+        defense_expert: defenseExpert,
+        judge_arbitrator_mediator: judgeArbitratorMediator,
+        insurance_company: insuranceCompany,
+        claim_type: claimType,
+        injury_type: injuryType,
+        facts,
+        injuries,
+        economic_damages: economicDamages
+      },
+      session_id: sessionId,
+    };
+
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Make API request
+      const response = await fetch('http://127.0.0.1:8000/cases/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setResponseData(data);
+    } catch (err) {
+      console.error("Analysis error:", err);
+      setError("Error analyzing case data. Please try again.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <h1 className="centered-header">Loading...</h1>
+          <LoadingSpinner message="Initializing application..." />
+        </header>
+      </div>
+    );
+  }
+
+  // If not authenticated, show login button
+  if (!authenticated) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <h1 className="centered-header">Case Settlement Value Analysis</h1>
+          <p>Please authenticate to access the system.</p>
+          {loginError && <p className="error">{loginError}</p>}
+          <button 
+            onClick={getToken} 
+            className="auth-button"
+            disabled={loading}
+          >
+            {loading ? "Authenticating..." : "Authenticate"}
+          </button>
+        </header>
+      </div>
+    );
+  }
+
+  // Main application view (authenticated)
+  return (
+    <div className="App">
+      <header className="App-header">
+        <h1 className="centered-header">Case Settlement Value Analysis</h1>
+        
+        <form onSubmit={handleSearch}>
+          <div className="form-row">
+            <label>Court:</label>
+            <input type="text" value={court} onChange={(e) => setCourt(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Date:</label>
+            <input type="text" value={date} onChange={(e) => setDate(e.target.value)} placeholder="YYYY-MM-DD" />
+          </div>
+          <div className="form-row">
+            <label>Plaintiff Medical Expert:</label>
+            <input type="text" value={plaintiffMedicalExpert} onChange={(e) => setPlaintiffMedicalExpert(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Defense Medical Expert:</label>
+            <input type="text" value={defenseMedicalExpert} onChange={(e) => setDefenseMedicalExpert(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Plaintiff Expert:</label>
+            <input type="text" value={plaintiffExpert} onChange={(e) => setPlaintiffExpert(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Defense Expert:</label>
+            <input type="text" value={defenseExpert} onChange={(e) => setDefenseExpert(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Judge/Arbitrator/Mediator:</label>
+            <input type="text" value={judgeArbitratorMediator} onChange={(e) => setJudgeArbitratorMediator(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Insurance Company:</label>
+            <input type="text" value={insuranceCompany} onChange={(e) => setInsuranceCompany(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Claim Type:</label>
+            <input type="text" value={claimType} onChange={(e) => setClaimType(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>General type of Injury or Damage:</label>
+            <input type="text" value={injuryType} onChange={(e) => setInjuryType(e.target.value)} />
+          </div>
+          <div className="form-row">
+            <label>Facts *:</label>
+            <textarea value={facts} onChange={(e) => setFacts(e.target.value)} rows="3" />
+          </div>
+          <div className="form-row">
+            <label>Details - Injuries or Damages *:</label>
+            <textarea value={injuries} onChange={(e) => setInjuries(e.target.value)} rows="3" />
+          </div>
+          <div className="form-row">
+            <label>Economic Damages *:</label>
+            <input type="text" value={economicDamages} onChange={(e) => setEconomicDamages(e.target.value)} />
+          </div>
+          <p className="required-note">* Indicates required data.</p>
+          <div className="button-container">
+            <button 
+              type="submit" 
+              className="analyze-button" 
+              disabled={analyzing}
+            >
+              {analyzing ? "Analyzing..." : "Analyze Case"}
+            </button>
+            <button type="button" onClick={handleLogout} className="logout-button">Log Out</button>
+          </div>
+        </form>
+        
+        {error && <p className="error">{error}</p>}
+        
+        {responseData && (
+          <div className="output-container">
+            <h2>Prediction</h2>
+            <div className="prediction-card">
+              {formatPrediction(responseData.prediction)}
+            </div>
+            <div className="similar-cases-container">
+              <button onClick={() => setShowSimilarCases(!showSimilarCases)} className="toggle-button">
+                {showSimilarCases ? "Hide Similar Cases" : "View Similar Cases"}
+              </button>
+              {showSimilarCases && (
+                <div className="similar-cases">
+                  <h3>Similar Cases</h3>
+                  {formatSimilarCases(responseData.similar_cases)}
+                  <div className="download-options">
+                    <button onClick={createSimilarCasesDocument} className="download-button">
+                      Download as Word Document
+                    </button>
+                    <button onClick={downloadSimilarCasesText} className="download-button secondary">
+                      Download as Text
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="download-container">
+              <button type="button" onClick={createPredictionDocument} className="download-button">
+                Download Results as Word
+              </button>
+            </div>
+          </div>
+        )}
+        
+        <UserDashboard />
+        
+        <div className="subscription-container">
+          <StripeCheckout />
+        </div>
+        
+        {analyzing && (
+          <div className="analysis-processing">
+            <LoadingSpinner message="Analyzing your case... This may take a moment." />
+          </div>
+        )}
+      </header>
+    </div>
+  );
+}
+
+export default App;

@@ -1,0 +1,6 @@
+flask==2.1.1
+sqlalchemy
+psycopg2-binary
+python-dotenv
+fastapi==0.99.1
+uvicorn
